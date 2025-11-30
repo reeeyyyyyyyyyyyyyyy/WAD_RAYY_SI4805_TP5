@@ -16,6 +16,7 @@ class BooksController extends Controller
      */
     public function index()
     {
+        return BookResource::collection(Book::all());
     }
 
     /**
@@ -24,7 +25,22 @@ class BooksController extends Controller
      */
     public function store(Request $request)
     {
+        $validator = Validator::make($request->all(), [
+            'title'          => 'required|string|max:255',
+            'author'         => 'required|string|max:255',
+            'published_year' => 'required|integer|digits:4',
+            'is_available'   => 'sometimes|boolean',
+        ]);
 
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        $book = Book::create($validator->validated());
+
+        return (new BookResource($book))
+            ->response()
+            ->setStatusCode(201);
     }
 
     /**
@@ -33,7 +49,8 @@ class BooksController extends Controller
      */
     public function show(string $id)
     {
-
+        $book = Book::findOrFail($id);
+        return new BookResource($book);
     }
 
     /**
@@ -42,7 +59,21 @@ class BooksController extends Controller
      */
     public function update(Request $request, string $id)
     {
+        $validator = Validator::make($request->all(), [
+            'title'          => 'sometimes|required|string|max:255',
+            'author'         => 'sometimes|required|string|max:255',
+            'published_year' => 'sometimes|required|integer|digits:4',
+            'is_available'   => 'sometimes|boolean',
+        ]);
 
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        $book = Book::findOrFail($id);
+        $book->update($validator->validated());
+
+        return new BookResource($book);
     }
 
     /**
@@ -51,6 +82,10 @@ class BooksController extends Controller
      */
     public function destroy(string $id)
     {
+        $book = Book::findOrFail($id);
+        $book->delete();
+
+        return response()->json(null, 204);
     }
 
     /**
@@ -59,6 +94,10 @@ class BooksController extends Controller
      */
     public function borrowReturn(string $id)
     {
+        $book = Book::findOrFail($id);
+        $book->is_available = !$book->is_available;
+        $book->save();
 
+        return new BookResource($book);
     }
 }
